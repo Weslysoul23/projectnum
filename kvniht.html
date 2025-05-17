@@ -1,0 +1,180 @@
+Conversation opened. 1 unread message.
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Group wess</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="kvniht.css">
+</head>
+<body>
+    <div class="container" style="position: static; margin: 40px auto; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh;">
+        <h1 style="animation: none; width: auto; border: none; text-align: center;">numerical aprox</h1>
+        <div class="tabs" style="justify-content: center;">
+            <button class="tab-button active" data-value="iteration" onclick="showTab('iteration')">Iteration Methods</button>
+            <button class="tab-button" data-value="approximation" onclick="showTab('approximation')">Derivative Approximation</button>
+        </div>
+
+        <div id="iteration" class="tab active" style="width: 100%;">
+            <h2>Iteration Methods</h2>
+            <form id="iterationForm">
+                <label for="method">Choose Method:</label>
+                <select id="method">
+                    <option value="fixed_point">Fixed Point</option>
+                    <option value="newton">Newton-Raphson</option>
+                    <option value="secant">Secant</option>
+                </select>
+                <label for="iterFunc">Enter function (e.g., exp(-x) - x):</label>
+                <input id="iterFunc" placeholder="Enter function" type="text">
+                <label for="guess1">Initial guess x0:</label>
+                <input id="guess1" placeholder="x0" type="number">
+                <label for="guess2">Second guess x1 (for secant):</label>
+                <input id="guess2" placeholder="x1" type="number">
+                <label for="numIter">Number of iterations:</label>
+                <input id="numIter" placeholder="Number of iterations" type="number">
+                <label for="decimals">Decimal places:</label>
+                <input id="decimals" placeholder="Decimal places" type="number">
+                <button type="button" onclick="runIteration()">Run Iteration</button>
+            </form>
+            <div id="iterationResult"></div>
+        </div>
+
+        <div id="approximation" class="tab" style="width: 100%;">
+            <h2>Derivative Approximation</h2>
+            <form id="approximationForm">
+                <label for="derivativeExpression">Enter function (e.g., x^2+3x+4):</label>
+                <input type="text" id="derivativeExpression" placeholder="Enter function">
+                <label for="derivativeGuess">Guess Value of x:</label>
+                <input type="number" id="derivativeGuess" placeholder="x">
+                <label for="derivativeH">Step size h:</label>
+                <input type="number" id="derivativeH" placeholder="h">
+                <label for="derivativeDecimalPlaces">Decimal places:</label>
+                <input type="number" id="derivativeDecimalPlaces" placeholder="Decimal places">
+                <button type="button" onclick="approximateDerivative()">Approximate Derivative</button>
+            </form>
+            <div id="derivativeResults"></div>
+        </div>
+    </div>
+    <script>
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-button').forEach(tabButton => tabButton.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelector(`[data-value="${tabId}"]`).classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        function formatNumber(value, decimals) {
+            return Number.parseFloat(value).toFixed(decimals);
+        }
+
+        function runIteration() {
+            const method = document.getElementById('method').value;
+            const funcStr = document.getElementById('iterFunc').value;
+            const f = math.parse(funcStr).compile();
+            let xb = parseFloat(document.getElementById('guess1').value);
+            let xa = parseFloat(document.getElementById('guess2').value);
+            const iterations = parseInt(document.getElementById('numIter').value);
+            const decimals = parseInt(document.getElementById('decimals').value);
+            const results = [];
+
+            for (let i = 0; i < iterations; i++) {
+                let xNew, faVal, fbVal;
+                if (method === 'fixed_point') {
+                    faVal = f.evaluate({ x: xb });
+                    xNew = faVal;
+                    results.push({ iter: i + 1, x: formatNumber(xb, decimals), gx: formatNumber(faVal, decimals), newX: formatNumber(xNew, decimals), relErr: formatNumber(Math.abs((xNew - xb) / xNew) * 100, decimals) + '%' });
+                    xb = xNew;
+                } else if (method === 'newton') {
+                    const df = math.derivative(funcStr, 'x').compile();
+                    const fx = f.evaluate({ x: xb });
+                    const dfx = df.evaluate({ x: xb });
+                    xNew = xb - fx / dfx;
+                    results.push({ iter: i + 1, x: formatNumber(xb, decimals), fx: formatNumber(fx, decimals), dfx: formatNumber(dfx, decimals), newX: formatNumber(xNew, decimals), relErr: formatNumber(Math.abs((xNew - xb) / xNew) * 100, decimals) + '%' });
+                    xb = xNew;
+                } else if (method === 'secant') {
+                    const fa = f.evaluate({ x: xa });
+                    const fb = f.evaluate({ x: xb });
+                    xNew = xa - (fa * (xa - xb)) / (fa - fb);
+                    let relErr = 0;
+                    if (xNew !== 0) {
+                       relErr = Math.abs((xNew - xa) / xNew) * 100;
+                    }
+                    results.push({
+                        iter: i + 1,
+                        xa: formatNumber(xa, decimals),
+                        xb: formatNumber(xb, decimals),
+                        fa: formatNumber(fa, decimals),
+                        fb: formatNumber(fb, decimals),
+                        newX: formatNumber(xNew, decimals),
+                        relErr: formatNumber(relErr, decimals) + '%'
+                    });
+                    xb = xa;
+                    xa = xNew;
+                }
+            }
+
+            let table = `<table><tr>`;
+            if (method === 'fixed_point') {
+                table += `<th>Iteration</th><th>x</th><th>g(x)</th><th>x_new</th><th>Relative Error</th></tr>`;
+                table += results.map(r => `<tr><td>${r.iter}</td><td>${r.x}</td><td>${r.gx}</td><td>${r.newX}</td><td>${r.relErr}</td></tr>`).join('');
+            } else if (method === 'newton') {
+                table += `<th>Iteration</th><th>x</th><th>f(x)</th><th>f'(x)</th><th>x_new</th><th>Relative Error</th></tr>`;
+                table += results.map(r => `<tr><td>${r.iter}</td><td>${r.x}</td><td>${r.fx}</td><td>${r.dfx}</td><td>${r.newX}</td><td>${r.relErr}</td></tr>`).join('');
+            } else if (method === 'secant') {
+                table += `<th>Iteration</th><th>xa</th><th>xb</th><th>f(xa)</th><th>f(xb)</th><th>x_new</th><th>Relative Error</th></tr>`;
+                table += results.map(r => `<tr><td>${r.iter}</td><td>${r.xa}</td><td>${r.xb}</td><td>${r.fa}</td><td>${r.fb}</td><td>${r.newX}</td><td>${r.relErr}</td></tr>`).join('');
+            }
+            table += `</table>`;
+            document.getElementById('iterationResult').innerHTML = table;
+        }
+
+        function approximateDerivative() {
+            const expression = document.getElementById("derivativeExpression").value;
+            const guessValue = parseFloat(document.getElementById("derivativeGuess").value);
+            const h = parseFloat(document.getElementById("derivativeH").value);
+            const decimalPlaces = parseInt(document.getElementById("derivativeDecimalPlaces").value);
+            const resultsDiv = document.getElementById("derivativeResults");
+            resultsDiv.innerHTML = "";
+
+            try {
+                const f = math.compile(expression);
+                const f_x_plus_h = f.evaluate({ x: guessValue + h });
+                const f_x = f.evaluate({ x: guessValue });
+                const f_x_minus_h = f.evaluate({ x: guessValue - h });
+
+                const fPrimeForward = (f_x_plus_h - f_x) / h;
+                const fPrimeBackward = (f_x - f_x_minus_h) / h;
+                const fPrimeCentral = (f_x_plus_h - f_x_minus_h) / (2 * h);
+
+                const derivativeExpr = math.derivative(expression, 'x').toString();
+                const derivedFn = math.compile(derivativeExpr);
+                const actualDerivativeValue = derivedFn.evaluate({ x: guessValue });
+
+                const forwardError = actualDerivativeValue !== 0 ? Math.abs((fPrimeForward - actualDerivativeValue) / fPrimeForward * 100).toFixed(decimalPlaces) : '∞';
+                const backwardError = actualDerivativeValue !== 0 ? Math.abs((fPrimeBackward - actualDerivativeValue) / fPrimeBackward * 100).toFixed(decimalPlaces) : '∞';
+                const centralError = actualDerivativeValue !== 0 ? Math.abs((fPrimeCentral - actualDerivativeValue) / fPrimeCentral * 100).toFixed(decimalPlaces) : '∞';
+
+                let output = "<h3>Derivative Approximations:</h3>";
+                output += "<table><thead><tr><th>Method</th><th>Approximation</th><th>Relative Error</th></tr></thead><tbody>";
+                output += `<tr><td>Forward Difference</td><td>${fPrimeForward.toFixed(decimalPlaces)}</td><td>${forwardError}%</td></tr>`;
+                output += `<tr><td>Backward Difference</td><td>${fPrimeBackward.toFixed(decimalPlaces)}</td><td>${backwardError}%</td></tr>`;
+                output += `<tr><td>Central Difference</td><td>${fPrimeCentral.toFixed(decimalPlaces)}</td><td>${centralError}%</td></tr>`;
+                output += `<tr><td>Actual Derivative f'(x)</td><td>${actualDerivativeValue.toFixed(decimalPlaces)}</td><td></td></tr>`;
+                output += "</tbody></table>";
+                resultsDiv.innerHTML = output;
+
+            } catch (error) {
+                resultsDiv.innerHTML = `<p class="error">Error in expression: ${error.message}</p>`;
+            }
+        }
+
+        // Tab button functionality
+        document.addEventListener('DOMContentLoaded', () => {
+            showTab('iteration');
+        });
+    </script>
+</body>
+</html>
